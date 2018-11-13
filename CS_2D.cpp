@@ -87,7 +87,7 @@ CS_2D::CS_2D(int _NGIT, int _NICV, int _NJCV, double* _Gamma)
 		{
 			GAM[1][i + 2][j + 2] = _Gamma[i*(NY - 2) + j];
 			if (j == 0) GAM[1][i + 2][j + 1] = GAM[1][i + 2][j + 2];
-			if (j == NY - 1) GAM[1][i + 2][j + 1] = GAM[1][i + 2][j];
+			if (j == NY - 3) GAM[1][i + 2][j + 3] = GAM[1][i + 2][j];  // Error found on 11/12/2018 NY - 2 - 1 = NY - 3
 		}
 	}
 	
@@ -96,7 +96,10 @@ CS_2D::CS_2D(int _NGIT, int _NICV, int _NJCV, double* _Gamma)
 		GAM[1][1][j + 2] = GAM[1][2][j + 2];
 		GAM[1][NX][j + 2] = GAM[1][NX-1][j + 2];
 	}
-
+	GAM[1][1][1] = GAM[1][1][2];
+	GAM[1][1][NX] = GAM[1][1][NX - 1];
+	GAM[1][NX][1] = GAM[1][NX][2];
+	GAM[1][NX][NX] = GAM[1][NX - 1][NX];
 	// Construct Gamma for other levels (NGIT)
 	// Upscaling
 	for (int N = 2; N <= NGIT; N++)
@@ -110,15 +113,19 @@ CS_2D::CS_2D(int _NGIT, int _NICV, int _NJCV, double* _Gamma)
 				GAM[N][i+2][j+2] = 1 * GAM[N-1][2*i +1 +2][2*j+1 +2] * GAM[N - 1][2 * i +  2][2 * j + 1 + 2] * GAM[N - 1][2 * i + 1 + 2][2 * j + 2] * GAM[N - 1][2 * i + 2][2 * j + 2];
 				GAM[N][i + 2][j + 2] = pow(GAM[N][i + 2][j + 2], 1.0 / 4.0); //1.0/4.0	
 
-				if (j == 0) GAM[1][i + 2][j + 1] = GAM[1][i + 2][j + 2];
-				if (j == iy_l - 1) GAM[1][i + 2][j + 3] = GAM[1][i + 2][j + 2];
+				if (j == 0) GAM[N][i + 2][j + 1] = GAM[N][i + 2][j + 2];
+				if (j == iy_l - 1) GAM[N][i + 2][j + 3] = GAM[N][i + 2][j + 2];
 			}
 		}
 		for (int j = 0; j < NY - 2; j++)
 		{
-			GAM[1][1][j + 2] = GAM[1][2][j + 2];
-			GAM[1][ix_l+2][j + 2] = GAM[1][ix_l + 1][j + 2];
+			GAM[N][1][j + 2] = GAM[N][2][j + 2];
+			GAM[N][ix_l+2][j + 2] = GAM[N][ix_l + 1][j + 2];
 		}
+		GAM[N][1][1] = GAM[N][1][2];
+		GAM[N][1][ix_l+2] = GAM[N][1][ix_l + 2 - 1];
+		GAM[N][ix_l + 2][1] = GAM[N][ix_l + 2 - 1][1];
+		GAM[N][ix_l + 2][ix_l + 2] = GAM[N][ix_l + 2 - 1][ix_l + 2];
 	}
 }
 
@@ -218,7 +225,7 @@ void CS_2D::OUTPUT_Gamma(int _KGR1, int _l, int _np)
 	SETIND(_KGR1);
 	std::ofstream output;
 	char filename[50];
-	sprintf(filename, "gam_level_%d_n_%d", _KGR1, _np);
+	sprintf(filename, "gam_level_%d_n_%d_mg_%d", _l, _np, _KGR1);
 	std::string sfilename = filename;
 	output.open(sfilename + ".dat");
 	output << "TITLE = \"FAI\" \n";
@@ -281,8 +288,8 @@ void CS_2D::GAMSOR(int _KGR1)
 	{
 		for (I = 2; I < L2 + 1; I++)
 			for (J = 2; J < M2 + 1; J++)
-				CON[KGR][I][J] = 20000.0*XCV[KGR][I] * YCV[KGR][J];
-
+				//CON[KGR][I][J] = 20000.0*XCV[KGR][I] * YCV[KGR][J];
+				CON[KGR][I][J] = 0.0*XCV[KGR][I] * YCV[KGR][J];
 		for (J = 2; J < M2+1; J++)
 		{
 			I = 2;
@@ -371,8 +378,11 @@ double CS_2D::compute(int _l, int _np)
 	BOUND(1);
 	SOLVE();
 	BOUND(1);
-	//OUTPUT(1,_l,_np);
-	//OUTPUT_Gamma(1, _l, _np);
+	/*OUTPUT(1,_l,_np);
+	for (int i = 1; i <= _l; i++)
+	{
+		OUTPUT_Gamma(i, _l, _np);
+	}*/
 	return (F[1][NX/2][NY/2]+ F[1][NX / 2 + 1][NY / 2]+ F[1][NX / 2][NY / 2 + 1]+ F[1][NX / 2 +1 ][NY / 2 + 1])/4.0;
 }
 
@@ -380,7 +390,7 @@ void CS_2D::SOLVE()
 {
 	// TODO : measure CPU time
 
-	for (int NVC = 1; NVC < 10000; NVC++)
+	for (int NVC = 1; NVC < 100000; NVC++)
 	{
 		NITER = 5;
 		COEF(1);

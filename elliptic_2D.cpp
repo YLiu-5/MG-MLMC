@@ -3,7 +3,7 @@
 
 //#include "mathimf.h"
 //#define K5
-
+//#define DEBUG_Covariance
 void elliptic_2D(int l, int N, double * sums, std::mt19937& _rng)  //level l, number of samples N
 {
 
@@ -19,7 +19,10 @@ void elliptic_2D(int l, int N, double * sums, std::mt19937& _rng)  //level l, nu
 	nc = nf / 2;      //
 
 	for (int k = 0; k<7; k++) sums[k] = 0.0;
-
+#ifdef DEBUG_Covariance
+double* ksum = new double[nf*nf]();
+double* xisum = new double[nf*nf]();
+#endif
 	for (int np = 0; np < N; np++) 
 	{
 		// Generate random number for nf, then upscale to nc
@@ -36,7 +39,7 @@ void elliptic_2D(int l, int N, double * sums, std::mt19937& _rng)  //level l, nu
 		double* xi = new double[nf*nf]();
 		for (int i = 0; i < nf*nf; i++)
 		{
-			xi[i] = 0.1*normal_dis(_rng);
+			xi[i] = 0.01*normal_dis(_rng);
 		}
 
 		double* kf = new double[nf*nf]();
@@ -55,6 +58,15 @@ void elliptic_2D(int l, int N, double * sums, std::mt19937& _rng)  //level l, nu
 		}
 #endif //  K5
 
+#ifdef DEBUG_Covariance
+		for (int i = 0; i < nf*nf; i++)
+		{
+			xisum[i] += xi[i];
+			ksum[i] += kf[i];
+		}
+			
+#endif // DEBUG_Covariance
+
 		
 		//print_matrix_1D(kf, nf*nf);
 		//print_matrix_1D(*cov_mat, nf*nf);
@@ -64,15 +76,8 @@ void elliptic_2D(int l, int N, double * sums, std::mt19937& _rng)  //level l, nu
 		if (l == 0)
 		{
 			//Compute Pf only
-			//CS_2D Modelf(l+1, 4, 4, kf);
 			std::auto_ptr<CS_2D> Modelf(new CS_2D(l + 1, 4, 4, kf));
-			/*Model.GRID();
-			Model.BOUND(1);
-			Model.SOLVE();
-			Model.BOUND(1);
-			Model.OUTPUT(1);*/
 			Pf = Modelf->compute(l,np);
-			Modelf.release();
 		}
 		else
 		{
@@ -80,7 +85,7 @@ void elliptic_2D(int l, int N, double * sums, std::mt19937& _rng)  //level l, nu
 			std::auto_ptr<CS_2D> Modelf(new CS_2D(l + 1, 4, 4, kf));
 			Pf = Modelf->compute(l, np);
 			double *kc = upscale(kf, nf, nf);
-			std::auto_ptr<CS_2D> Modelc(new CS_2D(l, 4, 4, kf));
+			std::auto_ptr<CS_2D> Modelc(new CS_2D(l, 4, 4, kc));
 			Pc = Modelc->compute(l, np);
 		}
 
@@ -96,8 +101,19 @@ void elliptic_2D(int l, int N, double * sums, std::mt19937& _rng)  //level l, nu
 		sums[6] += Pf*Pf;
 		delete kf;
 	}
-	
+#ifdef DEBUG_Covariance
+	for (int i = 0; i < nf*nf; i++)
+	{
+		ksum[i] /= N;
+		xisum[i] /= N;
+	}
+	print_matrix_2D(ksum, nf, nf);
+	print_matrix_2D(xisum, nf, nf);
+#endif // DEBUG_Covariance
 }
+
+
+
 
 double * construct_cov_mat(int nx, int ny)
 {
@@ -132,7 +148,7 @@ void print_matrix_2D(double *array_2d, int nx, int ny)
 	{
 		for (int j = 0; j < (ny); j++)
 		{
-			std::cout << array_2d[i*ny+j] << std::setw(10);
+			std::cout << array_2d[i*ny+j] << std::setw(15);
 		}
 		std::cout << "\n";
 	}

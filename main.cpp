@@ -5,7 +5,7 @@
 int main()
 {
 	int M = 2;     // refinement cost factor
-	int N0 = 200;   // initial samples on each level
+	int N0 = 2000;   // initial samples on each level
 	int Lmin = 2;   // minimum refinement level
 	int Lmax = 10;  // maximum refinement level
 
